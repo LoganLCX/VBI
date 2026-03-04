@@ -101,9 +101,11 @@ export function APP() {
 
       if (Array.isArray(measures)) {
         measures.forEach((value: any) => {
+          const field = value.field;
           const alias = value.alias || '';
           const aggregate = value.aggregate;
-          detail[alias] = {
+          // 使用 field 作为 key，而不是 alias
+          detail[field] = {
             alias,
             aggregate: aggregate ? { func: aggregate.func, quantile: aggregate.quantile } : undefined,
           };
@@ -207,9 +209,11 @@ export function APP() {
 
       if (Array.isArray(measures)) {
         measures.forEach((value: any) => {
+          const field = value.field;
           const alias = value.alias || '';
           const aggregate = value.aggregate;
-          detail[alias] = {
+          // 使用 field 作为 key，而不是 alias
+          detail[field] = {
             alias,
             aggregate: aggregate ? { func: aggregate.func, quantile: aggregate.quantile } : undefined,
           };
@@ -255,30 +259,27 @@ export function APP() {
     setRenderKey((prev) => prev + 1);
   };
 
-  const handleRenameMeasure = (alias: string, newAlias: string) => {
+  const handleRenameMeasure = (field: string, newAlias: string) => {
     if (builderRef.current?.measures && builderRef.current.doc) {
       const { measures, doc } = builderRef.current;
       doc.transact(() => {
-        measures.renameMeasure(alias, newAlias);
+        measures.renameMeasure(field, newAlias);
       });
-      // 更新 measureFields 中的别名
-      setMeasureFields((prev) => prev.map((m) => (m === alias ? newAlias : m)));
-      // 如果这个字段来自 dimension，更新 dimensionMeasures 中的别名
-      setDimensionMeasures((prev) => prev.map((m) => (m === alias ? newAlias : m)));
+      // measureFields 存的是 field，不需要改
       syncMeasuresDetail();
       setRenderKey((prev) => prev + 1);
     }
   };
 
   const handleChangeAggregateFunc = (
-    alias: string,
+    field: string,
     func: string,
     quantile?: number
   ) => {
     if (builderRef.current?.measures && builderRef.current.doc) {
       const { measures, doc } = builderRef.current;
       doc.transact(() => {
-        measures.modifyAggregate(alias, func, quantile);
+        measures.modifyAggregate(field, func, quantile);
       });
       syncMeasuresDetail();
       setRenderKey((prev) => prev + 1);
