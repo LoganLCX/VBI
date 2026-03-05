@@ -52,8 +52,38 @@ export const registerDemoConnector = () => {
           queryDSL as VQueryDSL<Record<string, string | number>>,
         );
 
+        // Map field names back to alias names for application layer
+        let normalizedDataset = queryResult.dataset;
+        if (queryDSL.select && Array.isArray(queryDSL.select)) {
+          const fieldToAliasMap: Record<string, string> = {};
+          const stringFields: Set<string> = new Set();
+          
+          for (const item of queryDSL.select) {
+            if (typeof item === 'string') {
+              stringFields.add(item);
+            } else if (typeof item === 'object' && item !== null) {
+              const field = (item as any).field;
+              const alias = (item as any).alias;
+              if (field && alias) {
+                fieldToAliasMap[field] = alias;
+              }
+            }
+          }
+
+          if (Object.keys(fieldToAliasMap).length > 0 || stringFields.size > 0) {
+            normalizedDataset = queryResult.dataset.map((row) => {
+              const next: Record<string, any> = {};
+              for (const [key, value] of Object.entries(row)) {
+                const newKey = fieldToAliasMap[key] || key;
+                next[newKey] = value;
+              }
+              return next;
+            });
+          }
+        }
+
         return {
-          dataset: queryResult.dataset,
+          dataset: normalizedDataset,
         };
       },
     };

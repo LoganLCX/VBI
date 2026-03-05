@@ -89,11 +89,15 @@ export const createLocalConnector = (connectorId: string) => {
         let normalizedDataset = queryResult.dataset;
         if (queryDSL.select && Array.isArray(queryDSL.select)) {
           // 识别度量列和维度列，使用 field 来匹配 SQL 列名
-          const measureFields: { field: string; alias: string }[] = [];
-          const dimensionFields: { field: string; alias: string }[] = [];
+          const measureFields: { field: string; alias?: string }[] = [];
+          const dimensionFields: { field: string; alias?: string }[] = [];
+          const stringFields: string[] = [];
           
           for (const item of queryDSL.select) {
-            if (typeof item === 'object' && item !== null) {
+            if (typeof item === 'string') {
+              // Direct field reference like "area" or "department"
+              stringFields.push(item);
+            } else if (typeof item === 'object' && item !== null) {
               const field = (item as any).field;
               const alias = (item as any).alias;
               
@@ -112,7 +116,7 @@ export const createLocalConnector = (connectorId: string) => {
           }
           console.log('Identified measure fields:', measureFields);
 
-          if (measureFields.length > 0 || dimensionFields.length > 0) {
+          if (measureFields.length > 0 || dimensionFields.length > 0 || stringFields.length > 0) {
             // SQL 现在使用 field 作为列名，需要从 field 读取并映射到 alias 返回
             normalizedDataset = queryResult.dataset.map((row) => {
               const next: Record<string, any> = {};
@@ -133,7 +137,7 @@ export const createLocalConnector = (connectorId: string) => {
                     num = NaN;
                   }
 
-                  // 仅在有效时赋值，使用 alias 作为列名
+                  // 仅在有效时赋值，使用 alias 作为列名，没有 alias 就用 field
                   if (!Number.isNaN(num)) {
                     next[alias || field] = num;
                   }
@@ -148,6 +152,14 @@ export const createLocalConnector = (connectorId: string) => {
                 const raw = (row as any)[field];
                 if (raw != null) {
                   next[alias || field] = raw;
+                }
+              }
+
+              // Process string fields (direct field references): copy as-is
+              for (const field of stringFields) {
+                const raw = (row as any)[field];
+                if (raw != null) {
+                  next[field] = raw;
                 }
               }
               

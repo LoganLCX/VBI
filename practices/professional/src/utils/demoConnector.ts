@@ -58,11 +58,15 @@ export const registerDemoConnector = () => {
           if (queryDSL.select && Array.isArray(queryDSL.select)) {
             // Identify measure columns (those with func property) and dimension columns
             // 使用 field 而不是 alias 作为列名，保持与 buildVSeed 的 id 一致
-            const measureFields: { field: string; alias: string }[] = [];
-            const dimensionFields: { field: string; alias: string }[] = [];
+            const measureFields: { field: string; alias?: string }[] = [];
+            const dimensionFields: { field: string; alias?: string }[] = [];
+            const stringFields: string[] = [];
             
             for (const item of queryDSL.select) {
-              if (typeof item === 'object' && item !== null) {
+              if (typeof item === 'string') {
+                // Direct field reference like "area" or "department"
+                stringFields.push(item);
+              } else if (typeof item === 'object' && item !== null) {
                 const field = (item as any).field;
                 const alias = (item as any).alias;
                 
@@ -81,7 +85,7 @@ export const registerDemoConnector = () => {
             }
 
 
-            if (measureFields.length > 0 || dimensionFields.length > 0) {
+            if (measureFields.length > 0 || dimensionFields.length > 0 || stringFields.length > 0) {
               // CRITICAL: Must reassign the result
               // SQL 现在使用 field 作为列名，所以需要从 field 读取，但返回时使用 alias
               normalizedDataset = queryResult.dataset.map((row) => {
@@ -104,18 +108,26 @@ export const registerDemoConnector = () => {
                       num = NaN;
                     }
 
-                    // Only assign if valid，用 alias 作为列名
+                    // Only assign if valid，用 alias 作为列名，没有 alias 就用 field
                     if (!Number.isNaN(num)) {
                       next[alias || field] = num;
                     }
                   }
                 }
 
-                // Process dimensions: just copy using alias as column name
+                // Process dimensions: just copy using alias as column name (or field if no alias)
                 for (const { field, alias } of dimensionFields) {
                   const raw = (row as any)[field];
                   if (raw != null) {
                     next[alias || field] = raw;
+                  }
+                }
+
+                // Process string fields (direct field references): copy as-is
+                for (const field of stringFields) {
+                  const raw = (row as any)[field];
+                  if (raw != null) {
+                    next[field] = raw;
                   }
                 }
 
