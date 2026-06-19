@@ -130,6 +130,10 @@ export default defineConfig({
           )
           config.externals = [...(Array.isArray(config.externals) ? config.externals : []), 'yjs']
         }
+
+        // The website relies on workspace packages exposing source entries.
+        // Keep the repo-wide source resolution behavior and layer our narrow starter aliases on top.
+        config.resolve.conditionNames = ['source', '...']
       },
     },
     server: {
